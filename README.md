@@ -1,5 +1,4 @@
 # Scellmate
-# Scellmate
 
 Scellmate is a contamination-aware, open-reference Snakemake pipeline for large-scale microbial single-cell genomics. It performs two-stage quality control of Single-Amplified Genomes (SAGs), builds context-specific reference databases, assembles and clusters SAGs into high-quality composite SAGs (CoSAGs), reconstructs non-redundant mobile genetic element (eMGE) catalogs, and finally links SAGs to their resident eMGEs.
 
