@@ -33,13 +33,6 @@ Optional
 EOF
 }
 
-##########################################################################################
-########################                Load config                         ##########################
-##########################################################################################
-CONFIG_FILE=$(realpath "$(dirname "$0")/../../config/scellmate-config")
-[[ -f $CONFIG_FILE ]] || { echo "[ERROR] config missing: $CONFIG_FILE"; exit 1; }
-source "$CONFIG_FILE"
-
 workdir=""
 OPTS=$(getopt -o t:h --long workdir:,threads:,help,\
 min_genus_reads:,min_species_direct:,ratio_cutoff:,min_genus_occ: -- "$@")
