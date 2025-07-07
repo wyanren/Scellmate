@@ -1,0 +1,352 @@
+#!/usr/bin/env bash
+################################################################################
+# Master script for Scellmate
+################################################################################
+
+VERSION="1.0.0"
+
+# ========================== Usage Message ==========================
+help_message() { 
+  YELLOW='\033[1;33m'
+  CYAN='\033[1;36m'
+  GREEN='\033[1;32m'
+  RED='\033[1;31m'
+  NC='\033[0m' # No Color
+  echo -e "${CYAN}========================================${NC}"
+  echo -e "${GREEN}      Scellmate v$VERSION${NC}"
+  echo -e "${CYAN}========================================${NC}"
+  echo ""
+  echo -e "${YELLOW}Usage:${NC} scellmate [module] [options]"
+  echo ""
+  echo -e "${YELLOW}Modules:${NC}"
+  echo -e "  ${GREEN}preprocess${NC}        Organize and QC input SAGs"
+  echo -e "  ${GREEN}first_qc${NC}          Reference-based curation of SAGs"
+  echo -e "  ${GREEN}second_qc${NC}         Co-assembly-based curation of SAGs and generation of CoSAGs"
+  echo -e "  ${GREEN}link_eMGE${NC}      eMGE identification and SAG-eMGE linkage"
+  echo -e "  ${GREEN}check${NC}             Check scripts, software, and databases availability"
+  echo -e "  ${GREEN}end_to_end${NC}        Run full pipeline from preprocessing to linkage"
+  echo ""
+  echo -e "For module-specific options, use: ${YELLOW}scellmate [module] --help${NC}"
+  echo ""
+  echo -e "${YELLOW}General Options:${NC}"
+  echo -e "  -h, --help        Show this help message"
+  echo -e "  -v, --version     Show version"
+  echo -e "${CYAN}========================================${NC}"
+}
+
+# ========================== 模块识别 ==========================
+if [[ $# -lt 1 ]]; then
+  echo -e "${RED}[ERROR] No module specified.${NC}"
+  help_message
+  exit 1
+fi
+
+MODULE="$1"
+shift
+MODULE_ARGS=("$@")
+
+SCRIPT_DIR="$(dirname $(realpath $0))"
+MODULE_DIR="$SCRIPT_DIR/modules"
+
+
+# Preprocess module
+run_preprocess() {
+  echo "Running preprocess module..."
+  "$SCRIPT_DIR/modules/preprocess_sag.sh" "${MODULE_ARGS[@]}"
+}
+
+# First QC module
+run_first_qc() {
+  echo "Running first QC module (reference-based curation of SAGs)..."
+  
+  # Parse arguments
+  local workdir=""
+  local threads=""
+  
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --workdir) workdir="$2"; shift 2 ;;
+      -t|--threads) threads="$2"; shift 2 ;;
+      -h|--help) 
+        echo "Usage: scellmate first_qc --workdir <workdir> [-t <threads>]"
+        echo "Steps:"
+        echo "  1. kraken2_subsetDB.sh"
+        echo "  2. markergene_build.sh"
+        echo "  3. mapping.sh"
+        exit 0
+        ;;
+      *) echo "Unknown option: $1"; exit 1 ;;
+    esac
+  done
+  
+  if [[ -z "$workdir" ]]; then
+    echo "Error: --workdir is required"
+    exit 1
+  fi
+  
+  # Step 1: Kraken2 subset database
+  echo "Step 1: Building Kraken2 subset database..."
+  "$SCRIPT_DIR/modules/kraken2_subsetDB.sh" --workdir "$workdir"
+  
+  # Step 2: Marker gene database
+  echo "Step 2: Building marker gene database..."
+  "$SCRIPT_DIR/modules/markergene_build.sh" --workdir "$workdir"
+  
+  # Step 3: Mapping
+  echo "Step 3: Performing mapping..."
+  if [[ -n "$threads" ]]; then
+    "$SCRIPT_DIR/modules/mapping.sh" --workdir "$workdir" -t "$threads"
+  else
+    "$SCRIPT_DIR/modules/mapping.sh" --workdir "$workdir"
+  fi
+  
+  # Step 4: First QC summary (R script)
+  echo "Step 4: Generating first QC summary table..."
+  Rscript "$SCRIPT_DIR/scripts/first_qc_summary.R" \
+    -w "$workdir" \
+    --i-featurecount "$workdir/05_first_QC/featureCounts/featureCounts_filtered.txt" \
+    --i-map "$workdir/05_first_QC/mapped_stat.txt" \
+    --i-kraken "$workdir/05_first_QC/kraken2_stat.txt" \
+    --db "$SCRIPT_DIR/../DB"
+}
+
+# Second QC module
+run_second_qc() {
+  echo "Running second QC module (co-assembly-based curation of SAGs and generation of CoSAGs)..."
+  
+  # Parse arguments
+  local workdir=""
+  local threads=""
+  local script_dir="$SCRIPT_DIR/scripts"
+  
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --workdir) workdir="$2"; shift 2 ;;
+      -t|--threads) threads="$2"; shift 2 ;;
+      -h|--help) 
+        echo "Usage: scellmate second_qc --workdir <workdir> [-t <threads>]"
+        echo "Steps:"
+        echo "  1. clustering_CoSAG.sh"
+        echo "  2. clustering_to_splitting.sh"
+        echo "  3. splitting_CoSAG.sh"
+        echo "  4. final_CoSAG_wash.sh"
+        exit 0
+        ;;
+      *) echo "Unknown option: $1"; exit 1 ;;
+    esac
+  done
+  
+  if [[ -z "$workdir" ]]; then
+    echo "Error: --workdir is required"
+    exit 1
+  fi
+  
+  # Step 1: Clustering CoSAG
+  echo "Step 1: Clustering CoSAG..."
+  if [[ -n "$threads" ]]; then
+    "$SCRIPT_DIR/modules/clustering_CoSAG.sh" --workdir "$workdir" --script "$script_dir" -t "$threads"
+  else
+    "$SCRIPT_DIR/modules/clustering_CoSAG.sh" --workdir "$workdir" --script "$script_dir"
+  fi
+  
+  # Step 2: Clustering to splitting
+  echo "Step 2: Clustering to splitting..."
+  "$SCRIPT_DIR/modules/clustering_to_splitting.sh" --workdir "$workdir"
+  
+  # Step 3: Splitting CoSAG
+  echo "Step 3: Splitting CoSAG..."
+  if [[ -n "$threads" ]]; then
+    "$SCRIPT_DIR/modules/splitting_CoSAG.sh" --workdir "$workdir" --script "$script_dir" -t "$threads"
+  else
+    "$SCRIPT_DIR/modules/splitting_CoSAG.sh" --workdir "$workdir" --script "$script_dir"
+  fi
+  
+  # Step 4: Final CoSAG wash
+  echo "Step 4: Final CoSAG wash..."
+  if [[ -n "$threads" ]]; then
+    "$SCRIPT_DIR/modules/final_CoSAG_wash.sh" -w "$workdir" -s "$script_dir" -t "$threads"
+  else
+    "$SCRIPT_DIR/modules/final_CoSAG_wash.sh" -w "$workdir" -s "$script_dir"
+  fi
+}
+
+# eMGE calling module
+run_link_eMGE() {
+  echo "Running eMGE calling module (eMGE identification and SAG-eMGE linkage)..."
+  
+  # Parse arguments
+  local workdir=""
+  local threads=""
+  local genomad_db=""
+  local script_dir="$SCRIPT_DIR/scripts"
+  
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --workdir) workdir="$2"; shift 2 ;;
+      -t|--threads) threads="$2"; shift 2 ;;
+      --genomad_db) genomad_db="$2"; shift 2 ;;
+      -h|--help) 
+        echo "Usage: scellmate link_eMGE --workdir <workdir> [-t <threads>] [--genomad_db <path>]"
+        echo "Steps:"
+        echo "  1. eMGE_DB.sh"
+        echo "  2. link_mge.sh"
+        exit 0
+        ;;
+      *) echo "Unknown option: $1"; exit 1 ;;
+    esac
+  done
+  
+  if [[ -z "$workdir" ]]; then
+    echo "Error: --workdir is required"
+    exit 1
+  fi
+  
+  # Step 1: eMGE database
+  echo "Step 1: Building eMGE database..."
+  if [[ -n "$genomad_db" ]]; then
+    "$SCRIPT_DIR/modules/eMGE_DB.sh" --workdir "$workdir" --script "$script_dir" --genomad_db "$genomad_db"
+  else
+    "$SCRIPT_DIR/modules/eMGE_DB.sh" --workdir "$workdir" --script "$script_dir"
+  fi
+  
+  # Step 2: Link MGE
+  echo "Step 2: Linking MGE..."
+  if [[ -n "$threads" ]]; then
+    "$SCRIPT_DIR/modules/link_mge.sh" -w "$workdir" -s "$script_dir" -t "$threads"
+  else
+    "$SCRIPT_DIR/modules/link_mge.sh" -w "$workdir" -s "$script_dir"
+  fi
+}
+
+# Check module
+run_check() {
+  echo "Running check module..."
+  # Add check logic here
+  echo "Check module not yet implemented"
+}
+
+# End to end module
+run_end_to_end() {
+  echo "Running end-to-end pipeline..."
+  
+  # Parse arguments
+  local input_dir=""
+  local workdir=""
+  local prefix=""
+  local threads=""
+  local genomad_db=""
+  local script_dir="$SCRIPT_DIR/scripts"
+  
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -i|--input) input_dir="$2"; shift 2 ;;
+      -o|--output) workdir="$2"; shift 2 ;;
+      --prefix) prefix="$2"; shift 2 ;;
+      -t|--threads) threads="$2"; shift 2 ;;
+      --genomad_db) genomad_db="$2"; shift 2 ;;
+      -h|--help) 
+        echo "Usage: scellmate end_to_end -i <input_dir> -o <workdir> --prefix <prefix> [-t <threads>] [--genomad_db <path>]"
+        echo "Runs complete pipeline: preprocess -> first_qc -> second_qc -> link_eMGE"
+        exit 0
+        ;;
+      *) echo "Unknown option: $1"; exit 1 ;;
+    esac
+  done
+  
+  if [[ -z "$input_dir" || -z "$workdir" || -z "$prefix" ]]; then
+    echo "Error: -i, -o, and --prefix are required"
+    exit 1
+  fi
+  
+  # Run all modules in sequence
+  echo "=== Starting end-to-end pipeline ==="
+  
+  # Preprocess
+  echo "1. Running preprocess..."
+  "$SCRIPT_DIR/modules/preprocess_sag.sh" -i "$input_dir" -o "$workdir" --prefix "$prefix" -t "${threads:-40}"
+  
+  # First QC
+  echo "2. Running first QC..."
+  if [[ -n "$threads" ]]; then
+    "$SCRIPT_DIR/modules/kraken2_subsetDB.sh" --workdir "$workdir"
+    "$SCRIPT_DIR/modules/markergene_build.sh" --workdir "$workdir"
+    "$SCRIPT_DIR/modules/mapping.sh" --workdir "$workdir" -t "$threads"
+  else
+    "$SCRIPT_DIR/modules/kraken2_subsetDB.sh" --workdir "$workdir"
+    "$SCRIPT_DIR/modules/markergene_build.sh" --workdir "$workdir"
+    "$SCRIPT_DIR/modules/mapping.sh" --workdir "$workdir"
+  fi
+  
+  # Step 4: First QC summary (R script)
+  echo "Step 4: Generating first QC summary table..."
+  Rscript "$SCRIPT_DIR/scripts/first_qc_summary.R" \
+    -w "$workdir" \
+    --i-featurecount "$workdir/05_first_QC/featureCounts/featureCounts_filtered.txt" \
+    --i-map "$workdir/05_first_QC/mapped_stat.txt" \
+    --i-kraken "$workdir/05_first_QC/kraken2_stat.txt" \
+    --db "$SCRIPT_DIR/../DB"
+  
+  # Second QC
+  echo "3. Running second QC..."
+  if [[ -n "$threads" ]]; then
+    "$SCRIPT_DIR/modules/clustering_CoSAG.sh" --workdir "$workdir" --script "$script_dir" -t "$threads"
+    "$SCRIPT_DIR/modules/clustering_to_splitting.sh" --workdir "$workdir"
+    "$SCRIPT_DIR/modules/splitting_CoSAG.sh" --workdir "$workdir" --script "$script_dir" -t "$threads"
+    "$SCRIPT_DIR/modules/final_CoSAG_wash.sh" -w "$workdir" -s "$script_dir" -t "$threads"
+  else
+    "$SCRIPT_DIR/modules/clustering_CoSAG.sh" --workdir "$workdir" --script "$script_dir"
+    "$SCRIPT_DIR/modules/clustering_to_splitting.sh" --workdir "$workdir"
+    "$SCRIPT_DIR/modules/splitting_CoSAG.sh" --workdir "$workdir" --script "$script_dir"
+    "$SCRIPT_DIR/modules/final_CoSAG_wash.sh" -w "$workdir" -s "$script_dir"
+  fi
+  
+  # eMGE calling
+  echo "4. Running eMGE calling..."
+  if [[ -n "$genomad_db" ]]; then
+    "$SCRIPT_DIR/modules/eMGE_DB.sh" --workdir "$workdir" --script "$script_dir" --genomad_db "$genomad_db"
+  else
+    "$SCRIPT_DIR/modules/eMGE_DB.sh" --workdir "$workdir" --script "$script_dir"
+  fi
+  
+  if [[ -n "$threads" ]]; then
+    "$SCRIPT_DIR/modules/link_mge.sh" -w "$workdir" -s "$script_dir" -t "$threads"
+  else
+    "$SCRIPT_DIR/modules/link_mge.sh" -w "$workdir" -s "$script_dir"
+  fi
+  
+  echo "=== End-to-end pipeline completed ==="
+}
+
+# ========================== 主执行逻辑 ==========================
+case "$MODULE" in
+  preprocess)
+    run_preprocess "${MODULE_ARGS[@]}"
+    ;;
+  first_qc)
+    run_first_qc "${MODULE_ARGS[@]}"
+    ;;
+  second_qc)
+    run_second_qc "${MODULE_ARGS[@]}"
+    ;;
+  link_eMGE)
+    run_link_eMGE "${MODULE_ARGS[@]}"
+    ;;
+  check)
+    run_check "${MODULE_ARGS[@]}"
+    ;;
+  end_to_end)
+    run_end_to_end "${MODULE_ARGS[@]}"
+    ;;
+  -v|--version)
+    echo "Scellmate v$VERSION"
+    ;;
+  -h|--help)
+    help_message
+    ;;
+  *)
+    echo -e "${RED}[ERROR] Unknown module: $MODULE${NC}"
+    help_message
+    exit 1
+    ;;
+esac
+
