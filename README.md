@@ -11,13 +11,6 @@ Scellmate is a contamination-aware, open-reference Snakemake pipeline for large-
 3. [Requirements](#requirements)  
 4. [Usage](#usage)  
 5. [Pipeline Modules & Methods](#pipeline-modules--methods)  
-   1. [1. Construct Sample-Specific Reference Database](#1-construct-sample–specific-reference-database)  
-   2. [2. Filter Unknown SAGs (First-Round QC)](#2-filter-unknown-sags-first-round-qc)  
-   3. [3. First-Round QC via Marker-Gene Profiles](#3-first-round-qc-via-marker-gene-profiles)  
-   4. [4. Second-Round QC via Supervised Co-Assembly](#4-second-round-qc-via-supervised-co-assembly)  
-   5. [5. Curation & Species Assignment of CoSAGs](#5-curation--species-assignment-of-cosags)  
-   6. [6. Reconstruct eMGE Catalogue](#6-reconstruct-emge-catalogue)  
-   7. [7. SAG–eMGE Linkage Analysis](#7-sag–emge-linkage-analysis)  
 6. [Citation](#citation)  
 7. [License](#license)  
 
