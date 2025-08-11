@@ -6,30 +6,47 @@ Scellmate is a contamination-aware, open-reference Snakemake pipeline for large-
 
 ## Table of Contents
 
-1. [Features](#features)  
-2. [Installation](#installation)  
-3. [Requirements](#requirements)  
-4. [Usage](#usage)  
-5. [Pipeline Modules & Methods](#pipeline-modules--methods)  
-6. [Citation](#citation)  
-7. [License](#license)  
-
----
-
-## Features
-
-- **Modular**: each step can be run independently or as part of an end-to-end workflow  
-- **Contamination-aware**: dual QC stages (reference-based and co-assembly) to remove contaminated or chimeric SAGs  
-- **Adaptive subsetting**: builds a context-specific Kraken2 database from GTDB plus de-novo eMGEs  
-- **Iterative co-assembly**: clusters SAGs into provisional CoSAGs at 97% ANI, flags overfitting, and refines clusters  
-- **Comprehensive eMGE recovery**: de-novo detection, clustering, extension with CoSAG contigs, and non-redundant catalog building  
-- **Host–mobilome linkage**: stringent two-step filtering to generate high-confidence presence/absence matrices  
+1. [Installation](#installation)  
+2. [Usage](#usage)  
 
 ---
 
 ## Installation
 
-1. **Clone the repository**  
+1. **Create environment via mamba**  
    ```bash
-   git clone https://github.com/YourOrg/Scellmate.git
-   cd Scellmate
+   mamba create -n scellmate -c wyanren scellmate
+
+2. **Download example databases (including default and testing database)**
+   ```bash
+   zenodo_get -d 10.5281/zenodo.16593955
+
+   for f in database_GTDB_related_for_test.tar.gz database.tar.gz sub_for_test.tar.gz; do
+      tar -xvzf "$f"
+   done
+
+3. **Set up database path**
+   ```bash
+   conda activate scellmate
+   scellmate set_default_db database/
+   scellmate set_GTDB_db database_GTDB_related_for_test/
+   scellmate set_tmp /dev/shm/
+   conda activate scellmate
+   
+## Usage
+
+1. **preprocess – Organize input SAGs**
+   ```bash
+   scellmate preprocess -i fastq/ -o <path/to/workdir/> --prefix <prefix> -t <threads>
+
+2. **first_qc – Reference-based curation of SAGs**
+   ```bash
+   scellmate first_qc --workdir <path/to/workdir> -o <path/to/workdir/> -t <threads>
+
+3. **second_qc — Co-assembly-based curation & CoSAG generation**
+   ```bash
+   scellmate second_qc --workdir <path/to/workdir> -t <threads>
+
+4. **link_eMGE — eMGE identification & SAG–mobilome linkage**
+   ```bash
+   scellmate link_eMGE --workdir <path/to/workdir> -t <threads>
