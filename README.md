@@ -8,7 +8,7 @@ Scellmate is an open-reference, contamination-aware pipeline that performs two-s
 
 1. **Create environment via mamba**  
    ```bash
-   mamba create -n scellmate -c wyanren scellmate
+   mamba create -n scellmate -c wyanren -c conda-forge scellmate
    ```
 
 2. **Download example databases (including default and testing database)**
