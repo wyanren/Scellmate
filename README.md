@@ -19,7 +19,7 @@ via a restricted distribution channel.
      -c conda-forge \
      <CONDA_PACKAGE> jq
 
-   conda activate Scellmate﻿
+   conda activate Scellmate_env﻿
 
 2. **Download example databases (including default and testing database)**
    ```bash
@@ -32,7 +32,7 @@ via a restricted distribution channel.
 
 3. **Set up path for scellmate**
    ```bash
-   conda activate scellmate
+   conda activate Scellmate_env
    
    scellmate set_default_db database/                     # Set the default Scellmate database
    scellmate set_GTDB_db database_GTDB_related_for_test/  # Set the GTDB-related database (subset here for quick testing)
