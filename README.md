@@ -4,6 +4,15 @@ Scellmate is an open-reference, contamination-aware pipeline that performs two-s
 
 ---
 
+## Code availability
+
+During the peer review process, Scellmate is distributed to reviewers and
+collaborators via a restricted conda channel.
+
+Complete installation are provided through the private distribution link supplied to reviewers.
+
+A fully documented public release will be made available upon acceptance.
+
 ## Installation
 
 1. **Create environment**  ﻿
@@ -35,7 +44,7 @@ Scellmate is an open-reference, contamination-aware pipeline that performs two-s
    scellmate set_GTDB_db database_GTDB_related_for_test/  # Set the GTDB-related database (subset here for quick testing)
    scellmate set_tmp /dev/shm/                            # Set temporary directory to speed up Kraken2 processing
    
-   conda deactivate && conda activate scellmate
+   conda deactivate && conda activate Scellmate_env
    ```
 
 ---
