@@ -19,7 +19,6 @@ via a restricted distribution channel.
      -c conda-forge \
      <CONDA_PACKAGE> jq
 
-
    conda activate Scellmate﻿
 
 2. **Download example databases (including default and testing database)**
