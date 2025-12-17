@@ -13,6 +13,9 @@ Scellmate is an open-reference, contamination-aware pipeline that performs two-s
      -c conda-forge \
      <LINK_CONDA_PACKAGE> jq
 
+   # <LINK_CONDA_CHANNEL> and <LINK_CONDA_PACKAGE> should be replaced
+   # with the private channel and package name provided to reviewers.
+
    conda activate Scellmate_env﻿
 
 2. **Download example databases (including default and testing database)**
