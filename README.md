@@ -12,8 +12,6 @@ During the peer review process, the complete installation
 are provided to reviewers
 via a restricted distribution channel.
 
-A fully documented public installation guide will be released upon acceptance.
-
 1. **Create environment**  ﻿
    ```bash
    mamba create -n Scellmate \
