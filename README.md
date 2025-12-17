@@ -6,18 +6,12 @@ Scellmate is an open-reference, contamination-aware pipeline that performs two-s
 
 ## Installation
 
-Scellmate is under active curation.
-
-During the peer review process, the complete installation
-are provided to reviewers
-via a restricted distribution channel.
-
 1. **Create environment**  ﻿
    ```bash
    mamba create -n Scellmate_env \
-     -c <CONDA_CHANNEL> \
+     -c <LINK_CONDA_CHANNEL> \
      -c conda-forge \
-     <CONDA_PACKAGE> jq
+     <LINK_CONDA_PACKAGE> jq
 
    conda activate Scellmate_env﻿
 
