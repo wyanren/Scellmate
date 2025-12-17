@@ -6,10 +6,22 @@ Scellmate is an open-reference, contamination-aware pipeline that performs two-s
 
 ## Installation
 
+Scellmate is under active curation.
+
+During the peer review process, the complete installation
+are provided to reviewers
+via a restricted distribution channel.
+
+A fully documented public installation guide will be released upon acceptance.
+
 1. **Create environment**  ﻿
    ```bash
-   # The Scellmate software is under active curation.
-   # During the peer review process, the complete installation are provided to reviewers via a restricted distribution channel.﻿
+   mamba create -n Scellmate \
+     -c <PRIVATE_CONDA_CHANNEL_URL> \
+     -c conda-forge \
+     scellmate jq
+
+   conda activate Scellmate﻿
 
 2. **Download example databases (including default and testing database)**
    ```bash
