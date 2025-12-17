@@ -14,10 +14,11 @@ via a restricted distribution channel.
 
 1. **Create environment**  ﻿
    ```bash
-   mamba create -n Scellmate \
-     -c <PRIVATE_CONDA_CHANNEL_URL> \
+   mamba create -n Scellmate_env \
+     -c <CONDA_CHANNEL> \
      -c conda-forge \
-     scellmate jq
+     <CONDA_PACKAGE> jq
+
 
    conda activate Scellmate﻿
 
