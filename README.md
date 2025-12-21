@@ -22,12 +22,14 @@ A fully documented public release will be made available upon acceptance.
    mamba create -n Scellmate_env \
      -c <LINK_CONDA_CHANNEL> \
      -c conda-forge \
-     <LINK_CONDA_PACKAGE> jq
+     scellmate jq
 
-   # <LINK_CONDA_CHANNEL> and <LINK_CONDA_PACKAGE> should be replaced
-   # with the private channel and package name provided to reviewers.
+   # <LINK_CONDA_CHANNEL> should be replaced with the channel name provided to reviewers.
 
    conda activate Scellmate_env﻿
+
+Installation time is approximately 15–25 minutes on a linux workstation. 
+Please be patient while dependencies are being resolved and installed.
 
 2. **Download example databases (including default and testing database)**
    ```bash
@@ -82,6 +84,9 @@ Scellmate provides the `end_to_end` module to execute the complete pipeline in a
    ```bash
    scellmate end_to_end -i <path/to/SAG_fastq> -o <path/to/workdir> --prefix <prefix> -t <num_threads>
    ```
+
+Running the end-to-end pipeline on the provided test dataset with 48 threads
+takes approximately **1 hour and 30 minutes** on a Linux workstation.
 
 **module-by-module**
 
