@@ -15,6 +15,29 @@ A fully documented public release will be made available upon acceptance.
 
 ---
 
+## System requirements
+
+Operating system:
+Scellmate has been tested and validated on Linux operating systems. 
+
+Software dependencies:
+Scellmate integrates the following open-source software packages for data analysis:
+BBMap (v39.52), Trimmomatic (v0.40), Bowtie2 (v2.5.4), SAMtools (v1.22.1),
+SPAdes (v3.13.1), CheckM (v1.2.4), FastANI (v1.34), Kraken2 (v2.17.1),
+GTDB-Tk (v2.6.1), Prodigal (v2.6.3), sourmash (v4.8.14), and geNomad (v1.11.2).
+
+All dependencies are managed and installed automatically through the provided
+conda environment.
+
+Hardware requirements:
+The pipeline has been tested on a Linux workstation running Ubuntu 18.04 LTS,
+equipped with dual Intel Xeon Silver 4214R CPUs (48 CPU threads total) and 754 GB of RAM.
+No non-standard hardware (e.g. GPU or accelerator) is required.
+Performance scales with available CPU cores.
+
+
+---
+
 ## Installation
 
 1. **Create environment**  ﻿
@@ -31,7 +54,7 @@ A fully documented public release will be made available upon acceptance.
 Installation time is approximately 15–25 minutes on a linux workstation. 
 Please be patient while dependencies are being resolved and installed.
 
-2. **Download example databases (including default and testing database)**
+2. **Download small example datasets (including single-cell data and database)**
    ```bash
    zenodo_get -d 10.5281/zenodo.16593955
 
