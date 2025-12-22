@@ -113,7 +113,7 @@ Scellmate also supports running each module independently for flexible control o
 2. first\_qc – Reference-based curation of SAGs
 
    ```bash
-   scellmate first_qc --workdir <path/to/workdir> -o <path/to/workdir/> -t <threads>
+   scellmate first_qc --workdir <path/to/workdir> -t <threads>
    ```
 
 3. second\_qc — Co-assembly-based curation & CoSAG generation
