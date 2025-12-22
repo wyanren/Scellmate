@@ -94,6 +94,7 @@ Scellmate provides the `end_to_end` module to execute the complete pipeline in a
 
    ```bash
    scellmate end_to_end -i <path/to/SAG_fastq> -o <path/to/workdir> --prefix <prefix> -t <num_threads>
+   # Example: scellmate end_to_end -i fastq/ -o scellmate_demo/ --prefix demo -t 48
    ```
 
 Running the end-to-end pipeline on the provided test dataset with 48 threads
