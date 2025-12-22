@@ -262,8 +262,7 @@ This file merges all **species-level presence/absence tables** into a single **s
 * **Sequence\_ID** – Identifier of the eMGE sequence (same format as above).
 * **Species columns** – One column per species detected in the dataset.
 
-  * Value `1` – eMGE is present in at least one SAG belonging to the species.
-  * Value `0` – eMGE is absent from all SAGs of the species.
+  * Value – linkage count of one eMGE belonging to the species.
 
 **Example:**
 
