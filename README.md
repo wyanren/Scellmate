@@ -4,17 +4,6 @@ Scellmate is an open-reference, contamination-aware pipeline that performs two-s
 
 ---
 
-## Code availability
-
-During the peer review process, Scellmate is distributed to reviewers and
-collaborators via a restricted conda channel.
-
-Complete installation are provided through the private distribution link supplied to reviewers.
-
-A fully documented public release will be made available upon acceptance.
-
----
-
 ## System requirements
 
 Operating system:
@@ -43,13 +32,12 @@ Performance scales with available CPU cores.
 1. **Create environment**  ﻿
    ```bash
    mamba create -n Scellmate_env \
-     -c <LINK_CONDA_CHANNEL> \
-     -c conda-forge \
-     scellmate jq
+     -c wyanren -c conda-forge \
+     scellmate openjdk=23 jq
 
-   # <LINK_CONDA_CHANNEL> should be replaced with the channel name provided to reviewers.
-
-   conda activate Scellmate_env﻿
+   conda activate Scellmate_env
+   conda env config vars set _JAVA_OPTIONS="-Xms32m -Xmx1g -Xss1m"
+   conda env config vars set JAVA_TOOL_OPTIONS="-Xms32m -Xmx1g -Xss1m"﻿
 
 Installation time is approximately 15–25 minutes on a linux workstation. 
 Please be patient while dependencies are being resolved and installed.
