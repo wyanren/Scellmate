@@ -31,14 +31,17 @@ Performance scales with available CPU cores.
 
 1. **Create environment**  ﻿
    ```bash
-   mamba create -n Scellmate_env \
+   mamba create -y -n Scellmate_env \
      -c wyanren -c conda-forge -c bioconda \
      scellmate openjdk=23 jq zenodo_get
 
    conda activate Scellmate_env
    conda env config vars set _JAVA_OPTIONS="-Xms32m -Xmx1g -Xss1m"
-   conda env config vars set JAVA_TOOL_OPTIONS="-Xms32m -Xmx1g -Xss1m"﻿
+   conda env config vars set JAVA_TOOL_OPTIONS="-Xms32m -Xmx1g -Xss1m"
 
+   sudo apt-get update
+   sudo apt-get install -y bc parallel
+﻿
 Installation time is approximately 15–25 minutes on a linux workstation. 
 Please be patient while dependencies are being resolved and installed.
 
