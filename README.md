@@ -47,7 +47,7 @@ Please be patient while dependencies are being resolved and installed.
 
 2. **Download small example datasets (including single-cell data and database)**
    ```bash
-   zenodo_get -r 16593955 # [10.5281/zenodo.16593955](https://zenodo.org/records/16593955)
+   zenodo_get -r 18092394 # https://doi.org/10.5281/zenodo.18092394
 
    for f in database_GTDB_related_for_test.tar.gz database.tar.gz sub_for_test.tar.gz; do
       tar -xvzf "$f"
