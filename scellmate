@@ -1,0 +1,368 @@
+#!/usr/bin/env bash
+################################################################################
+# Master script for Scellmate
+################################################################################
+
+VERSION="0.1.0"
+
+# ========================== Usage Message ==========================
+help_message() { 
+  YELLOW='\033[1;33m'
+  CYAN='\033[1;36m'
+  GREEN='\033[1;32m'
+  RED='\033[1;31m'
+  NC='\033[0m' # No Color
+  echo -e "${CYAN}========================================${NC}"
+  echo -e "${GREEN}      Scellmate v$VERSION${NC}"
+  echo -e "${CYAN}========================================${NC}"
+  echo ""
+  echo -e "${YELLOW}Usage:${NC} scellmate [module] [options]"
+  echo ""
+  echo -e "${YELLOW}Modules:${NC}"
+  echo -e "  ${GREEN}preprocess${NC}        Organize and QC input SAGs"
+  echo -e "  ${GREEN}first_qc${NC}          Reference-based curation of SAGs"
+  echo -e "  ${GREEN}second_qc${NC}         Co-assembly-based curation of SAGs and generation of CoSAGs"
+  echo -e "  ${GREEN}link_eMGE${NC}      eMGE identification and SAG-eMGE linkage"
+  # echo -e "  ${GREEN}check${NC}             Check scripts, software, and databases availability"
+  echo -e "  ${GREEN}end_to_end${NC}        Run full pipeline from preprocessing to linkage"
+  echo ""
+  echo -e "For module-specific options, use: ${YELLOW}scellmate [module] --help${NC}"
+  echo ""
+  echo -e "${YELLOW}General Options:${NC}"
+  echo -e "  -h, --help        Show this help message"
+  echo -e "  -v, --version     Show version"
+  echo -e ""
+  echo -e "${YELLOW}Database Path Setup:${NC}"
+  echo -e "  scellmate set_default_db /path/to/db      Set default Scellmate database path (env: SCELLMATE_DB)"
+  echo -e "  scellmate set_GTDB_db /path/to/gtdb      Set GTDB-Tk database path (env: SCELLMATE_GTDB_PATH)"
+  echo -e "  scellmate set_tmp /path/to/tmp      Set tmp filesystem path (env: TMP_FILESYSTEM_PATH)"
+  echo -e "${CYAN}========================================${NC}"
+}
+
+# -------------------- Load configuration --------------------
+# This will source config-scellmate in the same directory,
+# which sets SCM_MODULES and SCM_SCRIPTS.
+script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+config_file="$script_dir/config-scellmate"
+if [[ -f "$config_file" ]]; then
+  source "$config_file"
+else
+  echo "Error: config-scellmate not found in $script_dir" >&2
+  exit 1
+fi
+
+# ========================== Module dispatch ==========================
+if [[ $# -lt 1 ]]; then
+  echo -e "${RED}[ERROR] No module specified.${NC}"
+  help_message
+  exit 1
+fi
+
+MODULE="$1"
+shift
+MODULE_ARGS=("$@")
+
+# -------------------- Module runners --------------------
+run_preprocess() {
+  # Parse arguments
+  local input_dir=""
+  local output_dir=""
+  local prefix=""
+  local threads=40
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -i|--input)  input_dir="$2"; shift 2 ;;
+      -o|--output) output_dir="$2"; shift 2 ;;
+      --prefix)    prefix="$2";    shift 2 ;;
+      -t|--threads) threads="$2";   shift 2 ;;
+      -h|--help)
+        echo "Organize initial SAG inputs"
+        echo "Usage: scellmate preprocess -i <input_dir> -o <output_dir> --prefix <prefix> [-t <threads>]"
+        echo "e.g.: scellmate preprocess -i fastq/ -o scellmate_workdir/ --prefix fecal -t 16"
+        exit 0
+        ;;
+      *)
+        echo "Unknown option: $1" >&2
+        exit 1
+        ;;
+    esac
+  done
+
+  if [[ -z "$input_dir" || -z "$output_dir" || -z "$prefix" ]]; then
+    echo "Error: -i, -o and --prefix are required" >&2
+    exit 1
+  fi
+
+  "$SCM_MODULES/preprocess_sag.sh" \
+    -i "$input_dir" \
+    -o "$output_dir" \
+    --prefix "$prefix" \
+    -t "$threads"
+}
+
+run_first_qc() {
+  echo "Running first QC module (reference-based curation)..."
+  local workdir=""
+  local threads=40
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --workdir)    workdir="$2";   shift 2 ;;
+      -t|--threads) threads="$2";    shift 2 ;;
+      -h|--help)
+        echo "Usage: scellmate first_qc --workdir <workdir> [-t <threads>]"
+        echo "1) kraken2_subsetDB: subset prokaryotic genomes based on kraken2 profiles against GTDB"
+        echo "2) markergene_build: locate single-copy-gene region from subsetting genomes"
+        echo "3) eMGE_tempDB: call potential extrachromosomal mobile genetic element from SAG assembly"
+        echo "4) mapping: map SAG reads against DB, and curate the mapping results"
+        echo "5) first QC: summary"
+        exit 0
+        ;;
+      *)
+        echo "Unknown option: $1" >&2
+        exit 1
+        ;;
+    esac
+  done
+
+  if [[ -z "$workdir" ]]; then
+    echo "Error: --workdir is required" >&2
+    exit 1
+  fi
+
+  echo "Step 1: Building Kraken2 subset database..."
+  "$SCM_MODULES/kraken2_subsetDB.sh" --workdir "$workdir" -t "$threads"
+
+  echo "Step 2: Building marker gene database..."
+  "$SCM_MODULES/markergene_build.sh" --workdir "$workdir" -t "$threads"
+
+  echo "Step 3: Calling temp eMGE database..."
+  "$SCM_MODULES/eMGE_tempDB.sh" --workdir "$workdir" -t "$threads" --script "$SCM_SCRIPTS"
+
+  echo "Step 4: Performing mapping..."
+  "$SCM_MODULES/mapping.sh" --workdir "$workdir" -t "$threads"
+
+  echo "Step 4: Generating first QC summary..."
+  Rscript "$SCM_SCRIPTS/first_curation.R" \
+    --workdir "$workdir"
+}
+
+
+run_second_qc() {
+  echo "Running second QC module (co-assembly curation)..."
+  local workdir=""
+  local threads=40
+  local max_CoSAG_cont=10
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --workdir)    workdir="$2";  shift 2 ;;
+      -t|--threads) threads="$2";   shift 2 ;;
+      --max_CoSAG_cont) max_CoSAG_cont="$2"; shift 2 ;;
+      -h|--help)
+        echo "Usage: scellmate second_qc --workdir <workdir> [-t <threads>] [--max_CoSAG_cont <value>]"
+        echo "1) clustering_CoSAG"
+        echo "2) clustering_to_splitting"
+        echo "3) splitting_CoSAG"
+        echo "4) final_CoSAG_wash"
+        exit 0
+        ;;
+      *)
+        echo "Unknown option: $1" >&2
+        exit 1
+        ;;
+    esac
+  done
+
+  if [[ -z "$workdir" ]]; then
+    echo "Error: --workdir is required" >&2
+    exit 1
+  fi
+
+  echo "Step 1: Clustering CoSAG..."
+  "$SCM_MODULES/clustering_CoSAG.sh" --workdir "$workdir" --script "$SCM_SCRIPTS" -t "$threads"
+
+  echo "Step 2: Clustering to splitting..."
+  "$SCM_MODULES/clustering_to_splitting.sh" --workdir "$workdir"
+
+  echo "Step 3: Splitting CoSAG..."
+  "$SCM_MODULES/splitting_CoSAG.sh" --workdir "$workdir" -t "$threads" -s "$SCM_SCRIPTS"
+
+  echo "Step 4: Final CoSAG wash..."
+  "$SCM_MODULES/final_CoSAG_wash.sh" -w "$workdir" -t "$threads" -s "$SCM_SCRIPTS" --max_CoSAG_cont "$max_CoSAG_cont"
+}
+
+
+run_link_eMGE() {
+  echo "Running eMGE linkage module..."
+  local workdir=""
+  local threads=40
+  local genomad_db=""
+  local score_cutoff=0.7
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --workdir)    workdir="$2";     shift 2 ;;
+      -t|--threads) threads="$2";      shift 2 ;;
+      --genomad_db) genomad_db="$2";   shift 2 ;;
+      --score_cutoff) score_cutoff="$2"; shift 2 ;;
+      -h|--help)
+        echo "Usage: scellmate link_eMGE --workdir <workdir> [-t <threads>] [--genomad_db <path>] [--score_cutoff <value>]"
+        echo "1) eMGE_DB"
+        echo "2) link_mge"
+        exit 0
+        ;;
+      *)
+        echo "Unknown option: $1" >&2
+        exit 1
+        ;;
+    esac
+  done
+
+  if [[ -z "$workdir" ]]; then
+    echo "Error: --workdir is required" >&2
+    exit 1
+  fi
+
+  echo "Step 1: Building eMGE database..."
+  "$SCM_MODULES/eMGE_DB.sh" --workdir "$workdir" --script "$SCM_SCRIPTS"
+
+  echo "Step 2: Linking eMGE..."
+  "$SCM_MODULES/link_mge.sh" -w "$workdir" -t "$threads" -s "$SCM_SCRIPTS" --score_cutoff "$score_cutoff"
+}
+
+# Check module
+# run_check() {
+#  echo "Running check module..."
+#  echo "  - Verifying scripts"
+#  echo "  - Verifying databases"
+#  echo "  - Verifying software availability"
+#  "$SCM_MODULES/check_environment.sh"
+# }
+
+run_end_to_end() {
+  echo "Running end-to-end pipeline..."
+  local input_dir=""
+  local workdir=""
+  local prefix=""
+  local threads=48
+  local max_CoSAG_cont=10
+  local score_cutoff=0.7
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -i|--input)  input_dir="$2";   shift 2 ;;
+      -o|--output) workdir="$2";     shift 2 ;;
+      --prefix)    prefix="$2";      shift 2 ;;
+      -t|--threads) threads="$2";     shift 2 ;;
+      --max_CoSAG_cont) max_CoSAG_cont="$2"; shift 2 ;;
+      --score_cutoff) score_cutoff="$2"; shift 2 ;;
+      -h|--help)
+        echo "Usage: scellmate end_to_end -i <input> -o <workdir> --prefix <prefix> [-t <threads>] [--max_CoSAG_cont <value>] [--score_cutoff <value>]"
+        exit 0
+        ;;
+      *)
+        echo "Unknown option: $1" >&2
+        exit 1
+        ;;
+    esac
+  done
+
+  if [[ -z "$input_dir" || -z "$workdir" || -z "$prefix" ]]; then
+    echo "Error: -i, -o and --prefix are required" >&2
+    exit 1
+  fi
+
+  run_preprocess -i "$input_dir" -o "$workdir" --prefix "$prefix" -t "$threads"
+  run_first_qc --workdir "$workdir" -t "$threads"
+  run_second_qc --workdir "$workdir" -t "$threads" --max_CoSAG_cont "$max_CoSAG_cont"
+  run_link_eMGE --workdir "$workdir" -t "$threads" --score_cutoff "$score_cutoff"
+  echo "=== Scellmate complete ==="
+}
+
+# ========================== Main ==========================
+case "$MODULE" in
+  preprocess)
+    run_preprocess "${MODULE_ARGS[@]}"
+    ;;
+  first_qc)
+    run_first_qc "${MODULE_ARGS[@]}"
+    ;;
+  second_qc)
+    run_second_qc "${MODULE_ARGS[@]}"
+    ;;
+  link_eMGE)
+    run_link_eMGE "${MODULE_ARGS[@]}"
+    ;;
+  # check)
+  #   run_check "${MODULE_ARGS[@]}"
+  #   ;;
+  end_to_end)
+    run_end_to_end "${MODULE_ARGS[@]}"
+    ;;
+  set_default_db)
+    raw_path="${MODULE_ARGS[0]}"
+    if ! abs_path=$(realpath -m "$raw_path" 2>/dev/null); then
+      abs_path="$(cd "$(dirname "$raw_path")" && pwd)/$(basename "$raw_path")"
+    fi
+
+    env_dir="${CONDA_PREFIX:?}"
+    activate_dir="$env_dir/etc/conda/activate.d"
+    mkdir -p "$activate_dir"
+
+    cat <<EOF > "$activate_dir/set_scellmate_db.sh"
+#!/usr/bin/env bash
+export SCELLMATE_DB="$abs_path"
+EOF
+    chmod +x "$activate_dir/set_scellmate_db.sh"
+    echo "[Scellmate] Default database set to: $abs_path"
+    ;;
+  set_GTDB_db)
+    raw_path="${MODULE_ARGS[0]}"
+    if ! abs_path=$(realpath -m "$raw_path" 2>/dev/null); then
+      abs_path="$(cd "$(dirname "$raw_path")" && pwd)/$(basename "$raw_path")"
+    fi
+
+    env_dir="${CONDA_PREFIX:?}"
+    activate_dir="$env_dir/etc/conda/activate.d"
+    mkdir -p "$activate_dir"
+
+    cat <<EOF > "$activate_dir/set_gtdb_path.sh"
+#!/usr/bin/env bash
+export SCELLMATE_GTDB_PATH="$abs_path"
+EOF
+    chmod +x "$activate_dir/set_gtdb_path.sh"
+    echo "[Scellmate] GTDB-Tk database path set to: $abs_path"
+    ;;
+    set_tmp)
+    raw_path="${MODULE_ARGS[0]:-/dev/shm}"
+    if ! abs_path=$(realpath -m "$raw_path" 2>/dev/null); then
+      abs_path="$(cd "$(dirname "$raw_path")" && pwd)/$(basename "$raw_path")"
+    fi
+
+    env_dir="${CONDA_PREFIX:?}"
+    activate_dir="$env_dir/etc/conda/activate.d"
+    mkdir -p "$activate_dir"
+
+    cat <<EOF > "$activate_dir/set_tmp.sh"
+#!/usr/bin/env bash
+export TMP_FILESYSTEM_PATH="$abs_path"
+EOF
+
+    chmod +x "$activate_dir/set_tmp.sh"
+    echo "[Scellmate] Temporary filesystem path set to: $abs_path"
+    ;;
+  -v|--version)
+    echo "Scellmate v$VERSION"
+    ;;
+  -h|--help)
+    help_message
+    ;;
+  *)
+    echo -e "${RED}[ERROR] Unknown module: $MODULE${NC}"
+    help_message
+    exit 1
+    ;;
+esac
+

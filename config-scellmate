@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# scellmate configuration: locate modules/ and scripts/ directories automatically
+
+# Determine the directory where this script resides
+# script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Determine the REAL directory where this script file lives (follow symlink)
+script_source="${BASH_SOURCE[0]}"
+script_realpath="$(readlink -f "$script_source")"
+script_dir="$( dirname "$script_realpath" )"
+
+# Define paths
+SCM_MODULES="${script_dir}/SCM_modules"
+SCM_SCRIPTS="${script_dir}/SCM_scripts"
+
+# Verify that directories exist
+if [[ ! -d "$SCM_MODULES" ]]; then
+  echo "Error: modules directory not found: $SCM_MODULES" >&2
+  exit 1
+fi
+
+if [[ ! -d "$SCM_SCRIPTS" ]]; then
+  echo "Error: scripts directory not found: $SCM_SCRIPTS" >&2
+  exit 1
+fi
+
+# Export for child scripts
+export SCM_MODULES
+export SCM_SCRIPTS
