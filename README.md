@@ -33,7 +33,7 @@ Performance scales with available CPU cores.
    ```bash
    mamba create -y -n Scellmate_env \
      -c wyanren -c conda-forge -c bioconda \
-     scellmate==0.1.1 openjdk=23 jq==1.8.1 zenodo_get==1.6.1 genomad==1.11.2 mmseqs2==18.8cc5c
+     scellmate==0.1.1 openjdk=23 jq==1.8.1 zenodo_get==1.6.1 genomad==1.11.2 gtdbtk=2.6.1 mmseqs2==18.8cc5c
 
    conda activate Scellmate_env
    conda env config vars set _JAVA_OPTIONS="-Xms32m -Xmx1g -Xss1m"
