@@ -96,8 +96,8 @@ Database Path Setup:
 Scellmate provides the `end_to_end` module to execute the complete pipeline in a single command:
 
    ```bash
-   scellmate end_to_end -i <path/to/SAG_fastq> -o <path/to/workdir> --prefix <prefix> -t <num_threads>
-   # Example: scellmate end_to_end -i fastq/ -o scellmate_demo/ --prefix demo --score_cutoff 0.5 -t 48
+   scellmate end_to_end -i <path/to/SAG_fastq> -o <path/to/workdir> --prefix <prefix> -t <num_threads> --max_CoSAG_cont <value> --score_cutoff <value>
+   # Example: scellmate end_to_end -i fastq/ -o scellmate_demo/ --prefix demo --score_cutoff 0.5 -t 48 --max_CoSAG_cont 10 --score_cutoff 0.7
    ```
 
 Running the end-to-end pipeline on the provided test dataset with 48 threads
